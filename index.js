@@ -1,7 +1,7 @@
 const express = require('express');
 const mysql = require('mysql2/promise'); // Usamos mysql2 con promesas para async/await
 const app = express();
-const port = 3000; // Puerto donde correrá la API
+const port = 8000; // Puerto donde correrá la API
 
 // Configuración de la conexión a MySQL
 const dbConfig = {
