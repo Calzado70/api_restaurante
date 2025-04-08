@@ -1,0 +1,15 @@
+{
+  "name": "restaurante",
+  "version": "1.0.0",
+  "description": "api para la lectura de las cedulas de los colaboradores de la mepresa a la hora de recivir su alimentacion",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "gian carlos",
+  "license": "ISC",
+  "dependencies": {
+    "express": "^5.1.0",
+    "mysql2": "^3.14.0"
+  }
+}
