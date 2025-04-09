@@ -1,32 +1,27 @@
 const express = require('express');
-const mysql = require('mysql2/promise'); // Usamos mysql2 con promesas para async/await
+const mysql = require('mysql2/promise');
+const ExcelJS = require('exceljs'); // Nueva librería
 const app = express();
-const port = 8000; // Puerto donde correrá la API
+const port = 8000;
 
-// Configuración de la conexión a MySQL
 const dbConfig = {
-    host: 'localhost',           // IP del servidor local (o '127.0.0.1')
-    user: 'root',            // Usuario de MySQL que creaste
-    password: '', // Contraseña del usuario
-    database: 'restaurante_empresa' // Nombre de la base de datos
+    host: 'localhost',
+    user: 'root',
+    password: '',
+    database: 'restaurante_empresa'
 };
 
-// Middleware para parsear JSON (si envías datos en formato JSON)
 app.use(express.json());
 
-// Endpoint para verificar una cédula
+// Endpoint existente para verificar cédula
 app.get('/verificar-cedula', async (req, res) => {
-    const cedula = req.query.cedula; // Obtener la cédula desde los parámetros de la URL
-
+    const cedula = req.query.cedula;
     if (!cedula) {
         return res.status(400).json({ error: 'Debes proporcionar una cédula' });
     }
 
     try {
-        // Conectar a la base de datos
         const connection = await mysql.createConnection(dbConfig);
-
-        // Verificar si la cédula existe y está activa
         const [usuarios] = await connection.execute(
             'SELECT id, nombre FROM usuarios WHERE cedula = ? AND estado = "activo"',
             [cedula]
@@ -38,8 +33,6 @@ app.get('/verificar-cedula', async (req, res) => {
         }
 
         const usuario = usuarios[0];
-
-        // Verificar si ya almorzó hoy
         const [validaciones] = await connection.execute(
             'SELECT COUNT(*) as count FROM validaciones WHERE cedula = ? AND DATE(fecha_validacion) = DATE(NOW()) AND resultado = "exitoso"',
             [cedula]
@@ -50,7 +43,6 @@ app.get('/verificar-cedula', async (req, res) => {
             return res.json({ existe: true, mensaje: 'Ya almorzaste hoy' });
         }
 
-        // Registrar la validación exitosa
         await connection.execute(
             'INSERT INTO validaciones (usuario_id, cedula, resultado) VALUES (?, ?, "exitoso")',
             [usuario.id, cedula]
@@ -58,29 +50,57 @@ app.get('/verificar-cedula', async (req, res) => {
 
         await connection.end();
         return res.json({ existe: true, mensaje: `Bienvenido, ${usuario.nombre}, puedes almorzar` });
-
     } catch (error) {
         console.error('Error en la API:', error);
         return res.status(500).json({ error: 'Error en el servidor' });
     }
 });
 
-// (Opcional) Endpoint para consultar el historial de validaciones
-app.get('/historial', async (req, res) => {
+// Nuevo endpoint para generar el reporte en Excel
+// Nuevo endpoint para generar el reporte en Excel (todos los registros)
+// Nuevo endpoint para generar el reporte en Excel (todos los registros)
+app.get('/generar-reporte', async (req, res) => {
     try {
         const connection = await mysql.createConnection(dbConfig);
         const [rows] = await connection.execute(
-            'SELECT v.cedula, u.nombre, v.fecha_validacion, v.resultado FROM validaciones v JOIN usuarios u ON v.usuario_id = u.id ORDER BY v.fecha_validacion DESC'
+            'SELECT u.cedula, u.nombre, v.fecha_validacion ' +
+            'FROM validaciones v ' +
+            'JOIN usuarios u ON v.usuario_id = u.id ' +
+            'WHERE v.resultado = "exitoso" ' + // Sin restricción de fecha
+            'ORDER BY v.fecha_validacion'
         );
         await connection.end();
-        return res.json(rows);
+
+        if (rows.length === 0) {
+            return res.status(404).json({ error: 'No hay registros para generar el reporte' });
+        }
+
+        // Crear el archivo Excel
+        const workbook = new ExcelJS.Workbook();
+        const worksheet = workbook.addWorksheet('Reporte de Almuerzos');
+
+        worksheet.columns = [
+            { header: 'Cédula', key: 'cedula', width: 15 },
+            { header: 'Nombre', key: 'nombre', width: 30 },
+            { header: 'Fecha y Hora', key: 'fecha_validacion', width: 25 }
+        ];
+
+        worksheet.addRows(rows);
+
+        worksheet.getRow(1).font = { bold: true };
+        worksheet.getRow(1).alignment = { vertical: 'middle', horizontal: 'center' };
+
+        res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+        res.setHeader('Content-Disposition', 'attachment; filename="reporte_almuerzos_completo.xlsx"');
+
+        await workbook.xlsx.write(res);
+        res.end();
     } catch (error) {
-        console.error('Error en la API:', error);
-        return res.status(500).json({ error: 'Error en el servidor' });
+        console.error('Error generando reporte:', error);
+        res.status(500).json({ error: 'Error al generar el reporte' });
     }
 });
 
-// Iniciar el servidor
 app.listen(port, () => {
     console.log(`API corriendo en http://localhost:${port}`);
 });

@@ -9,6 +9,7 @@
   "author": "gian carlos",
   "license": "ISC",
   "dependencies": {
+    "exceljs": "^4.4.0",
     "express": "^5.1.0",
     "mysql2": "^3.14.0"
   }
