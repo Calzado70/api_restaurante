@@ -6,8 +6,8 @@ const port = 8000;
 
 const dbConfig = {
     host: 'localhost',
-    user: 'root',
-    password: '',
+    user: 'resturante_user',
+    password: 'Rest@1234emp',
     database: 'restaurante_empresa'
 };
 
